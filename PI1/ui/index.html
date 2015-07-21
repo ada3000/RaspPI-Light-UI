@@ -1,0 +1,514 @@
+﻿<!DOCTYPE html>
+<html lang="ru" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<title>Light Control</title>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="description" content="">
+	<meta name="author" content="">
+	<link rel="icon" href="favicon.ico">
+
+	<link rel="stylesheet" href="js/ui/jquery-ui.min.css" >
+	
+	<style rel="stylesheet">
+	
+		body 
+		{
+			background-color: #222222;
+			_font-family: 'Times New Roman';
+			_font-size: 1em;
+			color: white;
+		}
+		.output-dialog button
+		{
+			width:250px;
+		}
+		.control-row .name
+		{
+			width:150px;
+			font-weight:bold;
+			font-size: 1.5em;
+			text-align: right;
+			color: white;
+		}
+		
+		.control-row .state,
+		.control-row .enabled
+		{
+			_width:100px;
+			padding-left: 20px;
+		}
+		
+		.category
+		{
+			color: #DA6D50;
+			font-weight:bold;
+			font-size: 2em;
+			font-style: italic;
+			
+			margin-left:0.5em;
+			margin-right:0.5em;
+			margin-top:0.3em;
+			padding-bottom:0.3em;
+			margin-bottom:0.3em;
+			border-bottom: solid .1em #DA6D50;
+		}
+		table.buttons
+		{
+			margin-bottom: 1em;
+		}
+		table.buttons td
+		{
+			padding-bottom:10px;
+		}
+		.update
+		{
+			position:fixed;
+			top:1em;
+			right:1em;
+			padding:3px;
+			_background-color: green;
+			color: white;
+			_border: solid 1px white;
+		}
+		.update a
+		{
+			color: white;
+		}
+		.template
+		{
+			display:none;
+		}
+		.buttons-list
+		{
+			padding-left: 1em;
+		}
+		.buttons-list button
+		{
+			width:6em;
+			display: inline-block;
+			margin-bottom: 0.5em;
+		}
+	</style>
+	
+	<script src="js/jquery.min.js" type="text/javascript"></script>
+	<script src="js/ui/jquery-ui.min.js" type="text/javascript"></script>
+	
+</head>
+<body>
+	<table class="template">
+		<tbody class="js-device-row-template">
+		<tr class="js-control-row control-row">
+			<td class="js-name name">&nbsp;</td>
+			<td class="js-state state">&nbsp;</td>
+			<td class="js-enabled enabled">&nbsp;</td>
+		</tr>
+		</tbody>
+		
+		<tbody class="js-input-row-template">
+		<tr class="js-control-row control-row">
+			<td class="js-name name">&nbsp;</td>
+			<td class="js-enabled enabled">&nbsp;</td>
+		</tr>
+		</tbody>
+	</table>
+	
+	<div class="category">Свет</div>
+	<table class="js-buttons buttons">
+		
+	</table>
+	
+	<div class="category">Камеры</div>
+	<div class="js-buttons-list buttons-list">
+		<button onclick="location.href='./cam1.html'">Кирилл</button>
+		<button onclick="location.href='./cam2.html'">Полина</button>
+		<button onclick="location.href='./cam_all.html'">Все</button>
+	</div>
+	
+	<div class="category">Температура</div>
+	<table class="js-therm-list buttons">
+		<tr class="js-control-row control-row" data-id="room">
+			<td class="name">Комната</td>
+			<td class="enabled"><button><span class="js-value">99.9</span>°</button></td>
+			<td class="enabled"><span class="js-time">-</span></td>
+		</tr>
+		<tr class="js-control-row control-row" data-id="power">
+			<td class="name">PI Блок питания</td>
+			<td class="enabled"><button><span class="js-value">99.9</span>°</button></td>
+			<td class="enabled"><span class="js-time">-</span></td>
+		</tr>
+		<tr class="js-control-row control-row" data-id="core0">
+			<td class="name">PI Процессор</td>
+			<td class="enabled"><button><span class="js-value">99.9</span>°</button></td>
+			<td class="enabled"><span class="js-time">-</span></td>
+		</tr>
+		<tr class="js-control-row control-row" data-id="inner">
+			<td class="name">PI Корпус</td>
+			<td class="enabled"><button><span class="js-value">99.9</span>°</button></td>
+			<td class="enabled"><span class="js-time">-</span></td>
+		</tr>
+	</table>
+	
+	<div class="category">Выключатели</div>
+	<table class="js-buttons-in buttons">
+	
+	</table>
+	
+	<div class="update"><a href="./"><span class="js-update">&nbsp;</span></a></div>
+	
+	<div class="js-output-dialog output-dialog" style="display:none;">
+		<br/>
+		<button class="js-on">Включить</button>
+		<button class="js-off">Выключть</button>
+	</div>
+	
+	<div class="js-output-enable-out-dialog output-dialog" style="display:none;">
+		<br/>
+		<button class="js-enable">Enable</button>
+		<button class="js-disable">Disable</button>
+	</div>
+	
+	<script type="text/javascript">
+		//var stateUrl = "/light-state.py";
+		var stateUrl = "/cam/light.state.txt";
+		var commandUrl = "/light-command.py?cmd="; //On:wardrobeUp
+		var activeKey = null;
+		
+		var outputs = 
+		[
+			{
+				Name: "Комод",
+				Key: "red"
+			},
+			{
+				Name: "Кровать",
+				Key: "green"
+			},
+			{
+				Name: "Полина",
+				Key: "blue"
+			},
+			{
+				Name: "Шкаф верх",
+				Key: "wardrobeUp"
+			},
+			{
+				Name: "Шкаф ИК",
+				Key: "wardrobeIr"
+			}
+		];
+		
+		var inputs = 
+		[
+			{
+				Name: "Комод",
+				Key: "red"
+			},
+			{
+				Name: "Кровать",
+				Key: "green"
+			},
+			{
+				Name: "Полина",
+				Key: "blue"
+			},
+			{
+				Name: "Ночник",
+				Key: "bed"
+			}
+		];
+
+		function showUpdateMsg(msg)
+		{
+			$(".js-update").html(msg);
+		};
+		
+		function cellEnableOutClick(ev)
+		{
+			var trNode = $(this).parents(".js-control-row");
+			var model = trNode.data("model");
+			
+			showOutputDialog(model, funcActionEnableOut, funcIsDoEnabled);
+		};
+		
+		function cellEnableInClick(ev)
+		{
+			var trNode = $(this).parents(".js-control-row");
+			var model = trNode.data("model");
+			
+			showOutputDialog(model, funcActionEnableIn, funcIsDoEnabled);
+		};
+		
+		function cellOnClick(ev)
+		{
+			var trNode = $(this).parents(".js-control-row");
+			var model = trNode.data("model");
+			
+			showOutputDialog(model, funcActionOn, funcIsDoOn);
+		};
+		
+		//isDoOn = fn(model), fnAction(model, isDoOn)
+		function showOutputDialog(model, fnAction,fnIsDoOn)
+		{
+			var isDoOn = fnIsDoOn(model);
+			
+			var d=$(".js-output-dialog").dialog(
+			{
+				buttons:
+				{
+					"Отмена": function(){$(this).dialog("close");}
+				},
+				title: model.Name
+			});
+			
+			d.find("button").button();
+		
+			d.find(".js-on").unbind().click(function()
+			{
+				fnAction(model, isDoOn);
+				//sendCommand("On:"+window.activeKey);
+				d.dialog("close");
+			});
+			
+			d.find(".js-off").unbind().click(function()
+			{
+				fnAction(model, isDoOn);
+				//sendCommand("Off:"+window.activeKey);
+				d.dialog("close");
+			});
+
+			if(!isDoOn)
+			{
+				d.find(".js-on").hide();
+				d.find(".js-off").show();
+			}
+			else
+			{
+				d.find(".js-off").hide();
+				d.find(".js-on").show();
+			}
+		};
+		
+		
+		function funcIsDoOn(model)
+		{
+			return !model.On;
+		};
+		
+		function funcIsDoEnabled(model)
+		{
+			return !model.Enabled;
+		};
+
+		function funcActionOn(model, isDoOn)
+		{
+			if(isDoOn)
+				sendCommand("On:"+model.Key);
+			else
+				sendCommand("Off:"+model.Key);
+		};
+		
+		function funcActionEnableOut(model, isDoOn)
+		{
+			if(isDoOn)
+				sendCommand("EnableOut:"+model.Key);
+			else
+				sendCommand("DisableOut:"+model.Key);
+		};
+		
+		function funcActionEnableIn(model, isDoOn)
+		{
+			if(isDoOn)
+				sendCommand("EnableIn:"+model.Key);
+			else
+				sendCommand("DisableIn:"+model.Key);
+		};
+		
+		function renderOutputNode(model)
+		{
+			var template = $(".js-device-row-template").html();
+			var container = $(".js-buttons");
+			
+			var row = $(template);
+			container.append(row);
+			
+			row.data("model", model);
+			
+			row.find(".js-name").html(model.Name);
+			row.find(".js-state").html("?").click(cellOnClick);
+			row.find(".js-enabled").html("?").click(cellEnableOutClick);
+		};
+		
+		function renderInputNode(model)
+		{
+			var template = $(".js-input-row-template").html();
+			var container = $(".js-buttons-in");
+			
+			var row = $(template);
+			container.append(row);
+			
+			row.data("model", model);
+			
+			row.find(".js-name").html(model.Name);
+			row.find(".js-enabled").html("?").click(cellEnableInClick);
+		};
+		
+		function checkStates()
+		{
+			//showUpdateMsg("Updating ...");
+			
+			var x=$.get(stateUrl+"?_"+Math.random(1000000));
+			x.done(function(data)
+			{
+				var d = new Date();
+				
+				var h = d.getHours();
+				var m = d.getMinutes();
+				var s = d.getSeconds();
+				
+				h = h<10 ?"0"+h:h;
+				m = m<10 ?"0"+m:m;
+				s = s<10 ?"0"+s:s;
+				
+				var sd = h+":"+m+":"+s;
+				
+				showUpdateMsg("Update "+sd);
+				updateStates(JSON.parse(data.trim()));
+				setTimeout(checkStates, 1000);
+			});
+			
+			x.error(function(err)
+			{
+				showUpdateMsg("Update error");
+				setTimeout(checkStates, 3000);
+			});
+		};
+		function sendCommand(command)
+		{
+			$.get(commandUrl+command);
+		};
+		
+		function updateStates(state)
+		{
+			//console.debug(state);
+			var inputs = state.inputs;
+			var outputs = state.outputs;		
+			
+			var rows = $(".js-buttons .js-control-row");
+			rows.each(function()
+			{
+				var row = $(this);
+				var model = row.data("model");
+				var outputState = outputs[model.Key];
+				if(outputState!=null)
+				{
+					var stateNode = row.find(".js-state");
+					
+					if(!outputState.On)
+						stateNode.html("<span class='ui-state-disabled'>Off</span>").find("span").button();
+					else
+						stateNode.html("<span class='ui-state-highlight'>On</span>").find("span").button();
+					 
+					var enabledNode = row.find(".js-enabled");
+					
+					if(!outputState.Enabled)
+						enabledNode.html("<span class='ui-state-disabled'>Disabled</span>").find("span").button();
+					else
+						enabledNode.html("<span class='ui-state-highlight'>Enabled</span>").find("span").button();
+						
+					model.On = outputState.On;
+					model.Enabled = outputState.Enabled;
+				}
+			});
+			
+			var rowsIn = $(".js-buttons-in .js-control-row");
+			rowsIn.each(function()
+			{
+				var row = $(this);
+				var model = row.data("model");
+				var outputState = inputs[model.Key];
+				if(outputState!=null)
+				{
+					var enabledNode = row.find(".js-enabled");
+					
+					if(!outputState.Enabled)
+						enabledNode.html("<span class='ui-state-disabled'>Disabled</span>").find("span").button();
+					else
+						enabledNode.html("<span class='ui-state-highlight'>Enabled</span>").find("span").button();
+						
+					model.Enabled = outputState.Enabled;
+				}
+			});
+		};
+		
+		function checkTherm()
+		{
+			$(".js-therm-list .js-control-row").each(function()
+			{
+				var node = $(this);
+				var id = node.data("id");
+				
+				loadThermData(id, function(model)
+				{
+					updateThermNode(node,model);
+				});
+			});
+		};
+		
+		function loadThermData(id, fnLoadEnd)
+		{
+			var url  ="/cam/therm/"+id+".js";
+			var x=$.post(url,function(data)
+			{
+				data = JSON.parse(data.replace("\r","").replace("\n","").trim());
+				
+				fnLoadEnd(data);
+			},"text");
+		};
+		
+		function dateToString(date)
+		{
+			var y = date.getFullYear();
+			var  m = date.getMonth();
+			var d = date.getDay();
+			
+			var h = date.getHours();
+			if(h<10) h="0"+h;
+			var m = date.getMinutes();
+			if(m<10) m="0"+m;
+			var s = date.getSeconds();
+			if(s<10) s="0"+s;
+			
+			return h+":"+m+":"+s;
+			//return y+"-"+m+"-"+d+" "+h+":"+m+":"+s;
+		};
+		
+		function  updateThermNode(node, model)
+		{
+			var valueNode = node.find(".js-value");
+			var value = (model.value/1000).toFixed(1);
+			valueNode.html(value);
+			
+			var timeNode = node.find(".js-time");
+			var time = dateToString(new Date(model.time*1000));	
+			timeNode.html(time);			
+		};
+		
+		$(document).ready(function()
+		{
+			$(".js-therm-list button").button();
+			$(".js-buttons-list button").button();
+			
+			for(var i=0;i< outputs.length; i++)
+				renderOutputNode(outputs[i]);
+				
+			for(var i=0;i< inputs.length; i++)
+				renderInputNode(inputs[i]);
+				
+			checkStates();
+			checkTherm();
+		});
+	</script>
+</body>
+</html>

@@ -1,0 +1,289 @@
+﻿<!DOCTYPE html>
+<html lang="ru" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<title>Light Control</title>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="description" content="">
+	<meta name="author" content="">
+	<link rel="icon" href="favicon.ico">
+
+	<link rel="stylesheet" href="js/ui/jquery-ui.min.css" >
+	
+	<style rel="stylesheet">
+		.output-dialog button
+		{
+			width:250px;
+		}
+		.control-row .name
+		{
+			width:150px;
+			font-weight:bold;
+			font-size: 1.5em;
+			text-align: right;
+		}
+		
+		.control-row .state,
+		.control-row .enabled
+		{
+			_width:100px;
+			padding-left: 20px;
+		}
+		
+		td.category
+		{
+			font-weight:bold;
+			font-size: 2em;
+		}
+		table.buttons td
+		{
+			padding-bottom:10px;
+		}
+		.update
+		{
+			position:fixed;
+			top:10px;
+			right:10px;
+			padding:3px;
+			background-color: green;
+			color: white;
+			border: solid 1px #005000;
+		}
+		.template
+		{
+			display:none;
+		}
+	</style>
+	
+	<script src="js/jquery.min.js" type="text/javascript"></script>
+	<script src="js/ui/jquery-ui.min.js" type="text/javascript"></script>
+	
+</head>
+<body>
+	<table class="template">
+		<tbody class="js-device-row-template">
+		<tr class="js-control-row control-row">
+			<td class="js-name name">&nbsp;</td>
+			<td class="js-state state">&nbsp;</td>
+			<td class="js-enabled enabled">&nbsp;</td>
+		</tr>
+		</tbody>
+		<tbody class="js-row-header-template">
+		<tr>
+			<td class="js-name category">&nbsp;</td>
+			<td class="js-state state">&nbsp;</td>
+			<td class="js-enabled enabled">&nbsp;</td>
+		</tr>
+		</tbody>
+	</table>
+	<table class="js-buttons buttons">
+	
+	</table>
+	
+	<div class="js-update update">&nbsp;</div>
+	
+	<div class="js-output-dialog output-dialog" style="display:none;">
+		<br/>
+		<button class="js-on">Включить</button>
+		<button class="js-off">Выключть</button>
+	</div>
+	<script type="text/javascript">
+		//var stateUrl = "/light-state.py";
+		var stateUrl = "/light-ui/state.txt";
+		var commandUrl = "/light-command.py?cmd="; //On:wardrobeUp
+		var activeKey = null;
+		
+		var outputs = 
+		[
+			{
+				Name: "Свет",
+				Type: "light",
+				Items:
+				[
+					{
+						Name: "Комод",
+						Key: "red"
+					},
+					{
+						Name: "Кровать",
+						Key: "green"
+					},
+					{
+						Name: "Полина",
+						Key: "blue"
+					},
+					{
+						Name: "Шкаф верх",
+						Key: "wardrobeUp"
+					}
+				]
+			},			
+/*			{
+				Name: "Выключатели",
+				Type: "switch",
+				Items:
+				[
+					{
+						Name: "Комод",
+						Key: "red"
+					},
+					{
+						Name: "Кровать",
+						Key: "green"
+					},
+					{
+						Name: "Полина",
+						Key: "blue"
+					},
+					{
+						Name: "Ночник",
+						Key: "bed"
+					}
+				]
+			}
+			*/
+		];
+		
+		function showUpdateMsg(msg)
+		{
+			$(".js-update").html(msg);
+		};
+		
+		function showOutputDialog()
+		{
+			var trNode = $(this).parents(".js-control-row");
+			var model = trNode.data("model");
+			//alert(model.Key);
+			var d=$(".js-output-dialog").dialog(
+			{
+				buttons:
+				{
+					"Отмена": function(){$(this).dialog("close");}
+				}
+			});
+			
+			if(activeKey==null)
+			{
+				d.find("button").button();
+			
+				d.find(".js-on").click(function()
+				{
+					sendCommand("On:"+window.activeKey);
+					d.dialog("close");
+				});
+				
+				d.find(".js-off").click(function()
+				{
+					sendCommand("Off:"+window.activeKey);
+					d.dialog("close");
+				});
+
+			}
+			
+			activeKey = model.Key;
+			
+			if(model.On)
+			{
+				d.find(".js-on").hide();
+				d.find(".js-off").show();
+			}
+			else
+			{
+				d.find(".js-off").hide();
+				d.find(".js-on").show();
+			}
+		};
+		
+		function renderOutputCategory(category)
+		{
+			var row = $($(".js-row-header-template").html()).appendTo($(".js-buttons"));
+			
+			row.find(".js-name").html(category.Name);				
+			
+			for(var i=0;i< category.Items.length; i++)
+				renderOutputNode(category.Items[i]);
+		};
+		
+		function renderOutputNode(model)
+		{
+			var template = $(".js-device-row-template").html();
+			var container = $(".js-buttons");
+			
+			var row = $(template);
+			container.append(row);
+			
+			row.data("model", model);
+			
+			row.find(".js-name").html(model.Name);
+			row.find(".js-state").html("?").click(showOutputDialog);
+			row.find(".js-enabled").html("?");
+		};
+		
+		function checkStates()
+		{
+			showUpdateMsg("Updating ...");
+			
+			var x=$.get(stateUrl);
+			x.done(function(data)
+			{
+				showUpdateMsg("Update success");
+				updateStates(JSON.parse(data));
+				setTimeout(checkStates, 3000);
+			});
+			
+			x.error(function(err)
+			{
+				showUpdateMsg("Update error");
+				setTimeout(checkStates, 3000);
+			});
+		};
+		function sendCommand(command)
+		{
+			$.get(commandUrl+command);
+		};
+		
+		function updateStates(state)
+		{
+			console.debug(state);
+			var inputs = state.inputs;
+			var outputs = state.outputs;		
+			
+			var rows = $(".js-buttons .js-control-row");
+			rows.each(function()
+			{
+				var row = $(this);
+				var model = row.data("model");
+				var outputState = outputs[model.Key];
+				if(outputState!=null)
+				{
+					var stateNode = row.find(".js-state");
+					
+					if(!outputState.On)
+						stateNode.html("<span class='ui-state-disabled'>Off</span>").find("span").button();
+					else
+						stateNode.html("<span class='ui-state-highlight'>On</span>").find("span").button();
+					 
+					var enabledNode = row.find(".js-enabled");
+					
+					if(!outputState.Enabled)
+						enabledNode.html("<span class='ui-state-disabled'>Disabled</span>").find("span").button();
+					else
+						enabledNode.html("<span class='ui-state-highlight'>Enabled</span>").find("span").button();
+						
+					model.On = outputState.On;
+					model.Enabled = outputState.Enabled;
+				}
+			});
+		};
+		
+		$(document).ready(function()
+		{
+			for(var i=0;i< outputs.length; i++)
+				renderOutputCategory(outputs[i]);
+				
+			checkStates();
+		});
+	</script>
+</body>
+</html>

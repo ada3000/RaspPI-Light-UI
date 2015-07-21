@@ -1,0 +1,35 @@
+<html>
+<head>
+
+	<meta charset="utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	
+
+</head>
+	<link rel="stylesheet" type="text/css" href="cam.css" media="screen" />
+	
+	<script type="text/javascript">
+
+		function setUrl(imgId, port)
+		{
+			document.getElementById(imgId).src = "http://"+location.host+":"+port;
+		};
+		window.onload = function()
+		{
+		    //setUrl("img1",8081); //poly
+			setUrl("img1",8082); //kir
+		};
+		
+		window
+	</script>
+<body>
+	<div class="img">
+			<img width="640" height="360" id="img1" src="#" alt=""/>
+	</div>
+	
+	<div class="update"><a href="#" onclick="location.replace(location.href);">Обновить</a></div>
+	<div class="back"><a href="./"> Назад</a></div>
+</body>
+
+</html>
